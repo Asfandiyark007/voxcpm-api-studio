@@ -26,7 +26,7 @@ namespace test {
 namespace {
 
 constexpr const char* kModelPath = "/home/orangepi/Codes/ggbond/VoxCPM.cpp/models/voxcpm1.5.gguf";
-constexpr const char* kTraceDir = "/home/orangepi/Codes/ggbond/vendor/VoxCPM/trace/";
+constexpr const char* kTraceDir = "/home/orangepi/Codes/ggbond/VoxCPM.cpp/tests/fixtures/trace/";
 constexpr float kProjectionTolerance = 0.02f;
 constexpr float kProjectionMaxMismatchRate = 0.05f;
 constexpr float kStopTolerance = 0.02f;

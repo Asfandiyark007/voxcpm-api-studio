@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-PROJECT_ROOT="$PWD"
+PROJECT_ROOT="/home/orangepi/Codes/ggbond/VoxCPM.cpp"
 BUILD_DIR="${PROJECT_ROOT}/build"
 QUANTIZE_BIN="${BUILD_DIR}/examples/voxcpm_quantize"
 TTS_BIN="${BUILD_DIR}/examples/voxcpm_tts"
@@ -18,8 +18,8 @@ declare -a MODELS=("voxcpm1.5.gguf" "voxcpm-0.5b.gguf")
 declare -a QUANT_TYPES=("Q4_K" "Q8_0" "F16")
 
 # TTS test parameters
-PROMPT_AUDIO="${PROJECT_ROOT}/examples/dabin.wav"
-PROMPT_TEXT="可哪怕位于堂堂超一品官职,在十二郡一言九鼎的大柱国口干舌燥了,这少年还是没什么反应"
+PROMPT_AUDIO="/home/orangepi/Codes/ggbond/examples/dabin.wav"
+PROMPT_TEXT="可哪怕位于堂堂超一品官职,在十 二郡一言九鼎的大柱国口干舌燥了,这少年还是没什么反应"
 TEST_TEXT="测试一下，这是一个流式音频"
 THREADS=8
 TIMESTEPS=10
@@ -48,11 +48,37 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Function to extract RTF from TTS output
-extract_rtf() {
+# Function to extract timing and RTF from TTS output
+extract_timing_info() {
     local log_file="$1"
-    # RTF is typically in format "RTF: X.XXX" or similar
-    grep -i "rtf\|real.*time\|total.*time" "${log_file}" | tail -5 || echo "RTF not found"
+    local field="$2"
+
+    case "${field}" in
+        "vae_encode")
+            grep "AudioVAE encode:" "${log_file}" | awk '{print $3}' | sed 's/s$//' || echo "N/A"
+            ;;
+        "model_inference")
+            grep "Model inference:" "${log_file}" | awk '{print $3}' | sed 's/s$//' || echo "N/A"
+            ;;
+        "vae_decode")
+            grep "AudioVAE decode:" "${log_file}" | awk '{print $3}' | sed 's/s$//' || echo "N/A"
+            ;;
+        "total_time")
+            grep "Total:" "${log_file}" | awk '{print $2}' | sed 's/s$//' || echo "N/A"
+            ;;
+        "rtf_model_only")
+            grep "Model only" "${log_file}" | awk '{print $5}' || echo "N/A"
+            ;;
+        "rtf_without_encode")
+            grep "Without encode:" "${log_file}" | awk '{print $3}' || echo "N/A"
+            ;;
+        "rtf_full")
+            grep "Full pipeline:" "${log_file}" | awk '{print $3}' || echo "N/A"
+            ;;
+        *)
+            echo "N/A"
+            ;;
+    esac
 }
 
 # Function to get file size in MB
@@ -150,21 +176,20 @@ for model in "${MODELS[@]}"; do
         tts_end=$(date +%s.%N)
         tts_time=$(echo "${tts_end} - ${tts_start}" | bc)
 
-        # Extract RTF
-        rtf_info=$(extract_rtf "${log_file}")
+        # Extract detailed timing info from TTS output
+        vae_encode=$(extract_timing_info "${log_file}" "vae_encode")
+        model_inference=$(extract_timing_info "${log_file}" "model_inference")
+        vae_decode=$(extract_timing_info "${log_file}" "vae_decode")
+        total_time=$(extract_timing_info "${log_file}" "total_time")
+        rtf_model_only=$(extract_timing_info "${log_file}" "rtf_model_only")
+        rtf_without_encode=$(extract_timing_info "${log_file}" "rtf_without_encode")
+        rtf_full=$(extract_timing_info "${log_file}" "rtf_full")
 
         # Get audio duration if output exists
         if [[ -f "${output_wav}" ]]; then
             audio_duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${output_wav}" 2>/dev/null || echo "unknown")
-            # Calculate RTF manually if we have duration
-            if [[ "${audio_duration}" != "unknown" && -n "${audio_duration}" ]]; then
-                calculated_rtf=$(echo "scale=3; ${tts_time} / ${audio_duration}" | bc 2>/dev/null || echo "N/A")
-            else
-                calculated_rtf="N/A"
-            fi
         else
             audio_duration="failed"
-            calculated_rtf="N/A"
         fi
 
         # Log results
@@ -174,12 +199,20 @@ for model in "${MODELS[@]}"; do
         echo "  Quantized size: ${quant_size} MB" >> "${SUMMARY_FILE}"
         echo "  Compression ratio: $(echo "scale=2; ${original_size} / ${quant_size}" | bc)x" >> "${SUMMARY_FILE}"
         echo "  Quantization time: ${quant_time}s" >> "${SUMMARY_FILE}"
-        echo "  TTS inference time: ${tts_time}s" >> "${SUMMARY_FILE}"
-        echo "  Audio duration: ${audio_duration}s" >> "${SUMMARY_FILE}"
-        echo "  RTF (reported): ${rtf_info}" >> "${SUMMARY_FILE}"
-        echo "  RTF (calculated): ${calculated_rtf}" >> "${SUMMARY_FILE}"
+        echo "" >> "${SUMMARY_FILE}"
+        echo "  === Inference Timing ===" >> "${SUMMARY_FILE}"
+        echo "  AudioVAE encode:   ${vae_encode}s" >> "${SUMMARY_FILE}"
+        echo "  Model inference:   ${model_inference}s" >> "${SUMMARY_FILE}"
+        echo "  AudioVAE decode:   ${vae_decode}s" >> "${SUMMARY_FILE}"
+        echo "  Total:             ${total_time}s" >> "${SUMMARY_FILE}"
+        echo "  Audio duration:    ${audio_duration}s" >> "${SUMMARY_FILE}"
+        echo "" >> "${SUMMARY_FILE}"
+        echo "  === RTF (Real-Time Factor) ===" >> "${SUMMARY_FILE}"
+        echo "  Model only (no VAE):    ${rtf_model_only}" >> "${SUMMARY_FILE}"
+        echo "  Without encode:         ${rtf_without_encode}  (model + decode)" >> "${SUMMARY_FILE}"
+        echo "  Full pipeline:          ${rtf_full}" >> "${SUMMARY_FILE}"
 
-        log_info "  Done. RTF: ${calculated_rtf}, TTS time: ${tts_time}s"
+        log_info "  Done. RTF (without encode): ${rtf_without_encode}, Total: ${total_time}s"
         echo ""
     done
 done

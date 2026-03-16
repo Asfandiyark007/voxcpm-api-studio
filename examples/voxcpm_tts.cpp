@@ -705,12 +705,18 @@ int main(int argc, char** argv) {
         const int patch_size = runtime.config().patch_size;
         const int feat_dim = runtime.config().feat_dim;
         const int patch_len = patch_size * audio_vae.config().hop_length();
+
+        // Detailed timing breakdown
+        const auto encode_start = std::chrono::steady_clock::now();
         const PreparedInputs prepared = prepare_inputs(
             options, split_tokenizer, audio_vae, backend, patch_size, feat_dim, patch_len);
+        const auto encode_end = std::chrono::steady_clock::now();
+        const double vae_encode_time = std::chrono::duration<double>(encode_end - encode_start).count();
+
         log_memory_breakdown(log_memory, "post_prompt_encode", *store, backend, nullptr);
         const int seq_len = static_cast<int>(prepared.full_text_tokens.size());
-        const auto synth_start = std::chrono::steady_clock::now();
 
+        const auto model_start = std::chrono::steady_clock::now();
         std::cerr << "Running prefill, seq_len=" << seq_len << "...\n";
         VoxCPMDecodeState state = runtime.prefill(prepared.full_text_tokens,
                                                  prepared.text_mask,
@@ -799,8 +805,14 @@ int main(int argc, char** argv) {
             fail("Model generated no audio patches");
         }
 
+        const auto model_end = std::chrono::steady_clock::now();
+        const double model_time = std::chrono::duration<double>(model_end - model_start).count();
+
+        const auto decode_start = std::chrono::steady_clock::now();
         const std::vector<float> latent = patch_major_to_latent(decode_frames, patch_size, feat_dim);
         std::vector<float> waveform = decode_audio(audio_vae, backend, latent, total_patches, feat_dim);
+        const auto decode_end = std::chrono::steady_clock::now();
+        const double vae_decode_time = std::chrono::duration<double>(decode_end - decode_start).count();
         log_memory_breakdown(log_memory, "post_waveform_decode", *store, backend, &state);
         if (prepared.has_prompt_audio) {
             const size_t trim = static_cast<size_t>(patch_len) * static_cast<size_t>(prepended_context_frames);
@@ -810,18 +822,30 @@ int main(int argc, char** argv) {
         }
 
         write_wav_pcm16(options.output_path, waveform, audio_vae.config().sample_rate);
-        const auto synth_end = std::chrono::steady_clock::now();
+
         const double audio_seconds =
             static_cast<double>(waveform.size()) / static_cast<double>(audio_vae.config().sample_rate);
-        const double synth_seconds =
-            std::chrono::duration<double>(synth_end - synth_start).count();
-        const double rtf = audio_seconds > 0.0 ? (synth_seconds / audio_seconds) : 0.0;
+
+        // Calculate RTF values
+        const double total_synth_time = vae_encode_time + model_time + vae_decode_time;
+        const double rtf_total = audio_seconds > 0.0 ? (total_synth_time / audio_seconds) : 0.0;
+        const double rtf_model_only = audio_seconds > 0.0 ? (model_time / audio_seconds) : 0.0;
+        const double rtf_without_encode = audio_seconds > 0.0
+            ? ((model_time + vae_decode_time) / audio_seconds) : 0.0;
+
         std::cerr << "Saved audio to " << options.output_path
-                  << " (" << audio_seconds << "s)\n";
+                  << " (" << std::fixed << std::setprecision(3) << audio_seconds << "s)\n";
         std::cerr << std::fixed << std::setprecision(3)
-                  << "Synthesis stats: synth_time=" << synth_seconds
-                  << "s, audio_time=" << audio_seconds
-                  << "s, RTF=" << rtf << "\n";
+                  << "\n=== Timing Breakdown ===\n"
+                  << "  AudioVAE encode:   " << vae_encode_time << "s\n"
+                  << "  Model inference:   " << model_time << "s  (prefill + decode loop)\n"
+                  << "  AudioVAE decode:   " << vae_decode_time << "s\n"
+                  << "  -------------------------\n"
+                  << "  Total:             " << total_synth_time << "s\n"
+                  << "\n=== RTF (Real-Time Factor) ===\n"
+                  << "  Model only (no VAE):    " << rtf_model_only << "\n"
+                  << "  Without encode:         " << rtf_without_encode << "  (model + decode)\n"
+                  << "  Full pipeline:          " << rtf_total << "\n";
         return 0;
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << "\n";
