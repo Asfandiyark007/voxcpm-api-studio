@@ -1,0 +1,12 @@
+numpy
+torch
+safetensors
+gguf
+voxcpm
+
+# NOTE:
+# `scripts/convert_voxcpm_to_gguf.py` also imports:
+#   from voxcpm.modules.audiovae.audio_vae import AudioVAEConfig
+# This repository does not contain a Python package named `voxcpm`,
+# so you must also install VoxCPM's Python code (e.g. `pip install -e <VoxCPM_repo>`),
+# or ensure it's on PYTHONPATH when running the script.

@@ -20,16 +20,8 @@ import numpy as np
 import torch
 from safetensors.torch import load_file
 
-# Add parent directory to path for gguf import
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 import gguf
 from gguf import GGUFReader
-
-REPO_ROOT = Path(__file__).parent.parent.parent
-VOXCPM_SRC_ROOT = REPO_ROOT / "vendor" / "VoxCPM" / "src"
-if str(VOXCPM_SRC_ROOT) not in sys.path:
-    sys.path.insert(0, str(VOXCPM_SRC_ROOT))
 
 from voxcpm.modules.audiovae.audio_vae import AudioVAEConfig
 
