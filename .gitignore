@@ -25,3 +25,4 @@ third_party/ggml/build/
 third_party/ggml/.cache/
 
 _fetch/
+logs/

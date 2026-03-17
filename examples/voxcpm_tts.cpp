@@ -843,9 +843,9 @@ int main(int argc, char** argv) {
                   << "  -------------------------\n"
                   << "  Total:             " << total_synth_time << "s\n"
                   << "\n=== RTF (Real-Time Factor) ===\n"
-                  << "  Model only (no VAE):    " << rtf_model_only << "\n"
-                  << "  Without encode:         " << rtf_without_encode << "  (model + decode)\n"
-                  << "  Full pipeline:          " << rtf_total << "\n";
+                  << "  Without AudioVAE:        " << rtf_model_only << "\n"
+                  << "  Without AudioVAE Encode: " << rtf_without_encode << "  (model + decode)\n"
+                  << "  Full pipeline:           " << rtf_total << "\n";
         return 0;
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << "\n";
