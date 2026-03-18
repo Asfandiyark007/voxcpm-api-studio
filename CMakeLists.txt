@@ -20,10 +20,23 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
+if(EMSCRIPTEN AND VOXCPM_BUILD_WASM)
+    add_compile_options(
+        -msimd128
+        -matomics
+        -mbulk-memory
+        -pthread
+    )
+endif()
+
 # Backend options
 option(VOXCPM_VULKAN "Enable Vulkan backend support through ggml" OFF)
 option(VOXCPM_CUDA "Enable CUDA backend support through ggml" OFF)
 option(VOXCPM_NATIVE "Optimize ggml for the current CPU" ON)
+option(VOXCPM_BUILD_EXAMPLES "Build example binaries" ON)
+option(VOXCPM_BUILD_BENCHMARK "Build benchmark binaries" ON)
+option(VOXCPM_BUILD_TESTS "Build tests" ON)
+option(VOXCPM_BUILD_WASM "Build the Emscripten WASM target" OFF)
 
 # =============================================================================
 # Dependencies
@@ -36,15 +49,16 @@ set(GGML_CUDA ${VOXCPM_CUDA} CACHE BOOL "ggml: use CUDA" FORCE)
 set(GGML_NATIVE ${VOXCPM_NATIVE} CACHE BOOL "ggml: optimize the build for the current system" FORCE)
 add_subdirectory(${GGML_DIR} ggml)
 
-# nlohmann_json for trace loading
-set(JSON_DIR ${CMAKE_SOURCE_DIR}/third_party/json)
-if(EXISTS ${JSON_DIR}/CMakeLists.txt)
-    add_subdirectory(${JSON_DIR} json)
-else()
-    # Fetch if not available
-    include(FetchContent)
-    FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
-    FetchContent_MakeAvailable(json)
+# nlohmann_json is only required for tests / trace tooling.
+if(VOXCPM_BUILD_TESTS)
+    set(JSON_DIR ${CMAKE_SOURCE_DIR}/third_party/json)
+    if(EXISTS ${JSON_DIR}/CMakeLists.txt)
+        add_subdirectory(${JSON_DIR} json)
+    else()
+        include(FetchContent)
+        FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+        FetchContent_MakeAvailable(json)
+    endif()
 endif()
 
 # =============================================================================
@@ -81,7 +95,6 @@ target_link_libraries(voxcpm
     PUBLIC
         ggml
         ggml-base
-        nlohmann_json::nlohmann_json
 )
 
 target_compile_definitions(voxcpm
@@ -93,17 +106,25 @@ target_compile_definitions(voxcpm
 # Examples
 # =============================================================================
 
-add_subdirectory(examples)
-add_subdirectory(benchmark)
+if(VOXCPM_BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif()
+
+if(VOXCPM_BUILD_BENCHMARK)
+    add_subdirectory(benchmark)
+endif()
 
 # =============================================================================
 # Tests
 # =============================================================================
 
-option(VOXCPM_BUILD_TESTS "Build tests" ON)
 if(VOXCPM_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
+endif()
+
+if(EMSCRIPTEN AND VOXCPM_BUILD_WASM)
+    add_subdirectory(wasm)
 endif()
 
 # =============================================================================

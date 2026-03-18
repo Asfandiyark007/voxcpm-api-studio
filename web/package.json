@@ -1,0 +1,12 @@
+{
+  "name": "voxcpm-web-workspace",
+  "private": true,
+  "packageManager": "pnpm@10.12.1",
+  "scripts": {
+    "build:wasm": "bash ../scripts/build_wasm.sh",
+    "build:web": "pnpm --filter @voxcpm/web build",
+    "build:playground": "pnpm --filter voxcpm-playground build",
+    "build": "pnpm build:wasm && pnpm build:web && pnpm build:playground",
+    "dev": "pnpm build:wasm && pnpm build:web && pnpm --filter voxcpm-playground dev"
+  }
+}

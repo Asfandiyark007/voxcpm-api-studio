@@ -146,6 +146,16 @@ See `docs/ggml_subtree_maintenance_strategy.md` for the longer-term maintenance 
 2. Continue improving inference performance. Based on the benchmark report from `https://github.com/DakeQQ/Text-to-Speech-TTS-ONNX`, there is still a noticeable gap between the current performance here and their reported results.
 3. Add a `voxcpm-server` program that provides an OpenAI-compatible API service interface.
 
+## WASM Playground
+
+A browser-oriented WASM playground scaffold now lives in:
+
+- `wasm/`
+- `web/packages/voxcpm-web/`
+- `web/playground/`
+
+See [docs/wasm_playground.md](docs/wasm_playground.md) for the Emscripten build flow and web demo setup.
+
 ## Preview
 
 I also plan to create a dedicated GGML inference repository for `https://huggingface.co/fishaudio/s2-pro`.

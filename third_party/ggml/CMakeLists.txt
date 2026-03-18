@@ -280,7 +280,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED true)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
-find_package(Threads REQUIRED)
+if (EMSCRIPTEN)
+    if (NOT TARGET Threads::Threads)
+        add_library(Threads::Threads INTERFACE IMPORTED)
+    endif()
+else()
+    find_package(Threads REQUIRED)
+endif()
 
 include(GNUInstallDirs)
 

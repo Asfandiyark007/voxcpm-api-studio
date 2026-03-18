@@ -26,3 +26,10 @@ third_party/ggml/.cache/
 
 _fetch/
 logs/
+
+.emcache
+node_modules
+dist/
+web/playground/dist/
+web/packages/*/dist/
+web/.artifacts/
