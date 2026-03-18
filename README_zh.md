@@ -19,10 +19,107 @@
 
 ## 构建
 
+### CPU 构建
+
 ```bash
 cmake -B build
 cmake --build build
 ```
+
+### CUDA 构建
+
+在配置阶段启用 ggml 的 CUDA backend：
+
+```bash
+cmake -B build-cuda -DVOXCPM_CUDA=ON
+cmake --build build-cuda
+```
+
+如果你希望同时保留 CPU 和 CUDA 两套构建，建议使用不同的构建目录，例如 `build` 和 `build-cuda`。
+
+## 推理用法
+
+### 基础 CPU 推理
+
+```bash
+./build/examples/voxcpm_tts \
+  --model-path ./models/quantized/voxcpm1.5-q8_0-audiovae-f16.gguf \
+  --prompt-audio ./examples/tai_yi_xian_ren.wav \
+  --prompt-text "对，这就是我，万人敬仰的太乙真人。" \
+  --text "大家好，我现在正在大可奇奇体验AI科技。" \
+  --output ./out.wav \
+  --backend cpu \
+  --threads 8
+```
+
+### 带 Prompt 的推理
+
+```bash
+./build/examples/voxcpm_tts \
+  --model-path ./models/quantized/voxcpm1.5-q8_0-audiovae-f16.gguf \
+  --prompt-audio ./examples/tai_yi_xian_ren.wav \
+  --prompt-text "对，这就是我，万人敬仰的太乙真人。" \
+  --text "大家好，我现在正在大可奇奇体验AI科技。" \
+  --output ./out.wav \
+  --backend cpu \
+  --threads 8 \
+  --inference-timesteps 10 \
+  --cfg-value 2.0
+```
+
+### CUDA 推理
+
+```bash
+./build-cuda/examples/voxcpm_tts \
+  --model-path ./models/quantized/voxcpm1.5-q8_0-audiovae-f16.gguf \
+  --prompt-audio ./examples/tai_yi_xian_ren.wav \
+  --prompt-text "对，这就是我，万人敬仰的太乙真人。" \
+  --text "大家好，我现在正在大可奇奇体验AI科技。" \
+  --output ./out.wav \
+  --backend cuda \
+  --threads 8 \
+  --inference-timesteps 10 \
+  --cfg-value 2.0
+```
+
+`voxcpm_tts` 当前支持 `--backend {cpu|cuda|vulkan|auto}`。
+
+## Benchmark 脚本
+
+### 导出量化权重
+
+```bash
+./scripts/export_quantized_weights.sh
+```
+
+这个脚本会导出：
+- `Q4_K`
+- `Q8_0`
+- `F16`
+- 对应的 `+AudioVAE-F16` 变体
+- `F32` baseline 拷贝
+
+并生成类似 `logs/quantized_weights_manifest_*.tsv` 的 manifest 文件。
+
+### 对导出权重做 Benchmark
+
+CPU：
+
+```bash
+./scripts/benchmark_exported_weights.sh \
+  --weights-file ./logs/quantized_weights_manifest_*.tsv \
+  --backend cpu
+```
+
+CUDA：
+
+```bash
+./scripts/benchmark_exported_weights.sh \
+  --weights-file ./logs/quantized_weights_manifest_*.tsv \
+  --backend cuda
+```
+
+如果不传 `--weights-file`，脚本会自动选取 `logs/` 下最新的 manifest。
 
 ## 测试
 
@@ -42,6 +139,16 @@ ctest --output-on-failure
 - 当前本地补丁：`src/ggml-vulkan/ggml-vulkan.cpp` 中的 Vulkan 头文件兼容性调整
 
 详见 `docs/ggml_subtree_maintenance_strategy.md`。
+
+## TODO
+
+1. 准备添加一个 WASM 用例，让用户可以直接在网页上试用 VoxCPM 模型。
+2. 继续优化推理性能。根据 `https://github.com/DakeQQ/Text-to-Speech-TTS-ONNX` 的报告，我们和它们当前展示的性能表现相比仍然有一段差距。
+3. 添加一个 `voxcpm-server` 程序，提供 OpenAI 格式的接口服务。
+
+## 预告
+
+接下来我也计划为 `https://huggingface.co/fishaudio/s2-pro` 单独创建一个 GGML 推理仓库。
 
 ## 基准测试
 

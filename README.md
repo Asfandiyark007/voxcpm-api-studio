@@ -19,10 +19,107 @@ This directory now serves as the standalone repository root for `VoxCPM.cpp`.
 
 ## Build
 
+### CPU Build
+
 ```bash
 cmake -B build
 cmake --build build
 ```
+
+### CUDA Build
+
+Enable the ggml CUDA backend at configure time:
+
+```bash
+cmake -B build-cuda -DVOXCPM_CUDA=ON
+cmake --build build-cuda
+```
+
+If you want to keep both CPU and CUDA builds, use separate build directories such as `build` and `build-cuda`.
+
+## Inference
+
+### Basic CPU Inference
+
+```bash
+./build/examples/voxcpm_tts \
+  --model-path ./models/quantized/voxcpm1.5-q8_0-audiovae-f16.gguf \
+  --prompt-audio ./examples/tai_yi_xian_ren.wav \
+  --prompt-text "对，这就是我，万人敬仰的太乙真人。" \
+  --text "大家好，我现在正在大可奇奇体验AI科技。" \
+  --output ./out.wav \
+  --backend cpu \
+  --threads 8
+```
+
+### Prompted Inference
+
+```bash
+./build/examples/voxcpm_tts \
+  --model-path ./models/quantized/voxcpm1.5-q8_0-audiovae-f16.gguf \
+  --prompt-audio ./examples/tai_yi_xian_ren.wav \
+  --prompt-text "对，这就是我，万人敬仰的太乙真人。" \
+  --text "大家好，我现在正在大可奇奇体验AI科技。" \
+  --output ./out.wav \
+  --backend cpu \
+  --threads 8 \
+  --inference-timesteps 10 \
+  --cfg-value 2.0
+```
+
+### CUDA Inference
+
+```bash
+./build-cuda/examples/voxcpm_tts \
+  --model-path ./models/quantized/voxcpm1.5-q8_0-audiovae-f16.gguf \
+  --prompt-audio ./examples/tai_yi_xian_ren.wav \
+  --prompt-text "对，这就是我，万人敬仰的太乙真人。" \
+  --text "大家好，我现在正在大可奇奇体验AI科技。" \
+  --output ./out.wav \
+  --backend cuda \
+  --threads 8 \
+  --inference-timesteps 10 \
+  --cfg-value 2.0
+```
+
+`voxcpm_tts` currently supports `--backend {cpu|cuda|vulkan|auto}`.
+
+## Benchmark Scripts
+
+### Export Quantized Weights
+
+```bash
+./scripts/export_quantized_weights.sh
+```
+
+This exports:
+- `Q4_K`
+- `Q8_0`
+- `F16`
+- the corresponding `+AudioVAE-F16` variants
+- `F32` baseline copy
+
+and writes a manifest like `logs/quantized_weights_manifest_*.tsv`.
+
+### Benchmark Exported Weights
+
+CPU:
+
+```bash
+./scripts/benchmark_exported_weights.sh \
+  --weights-file ./logs/quantized_weights_manifest_*.tsv \
+  --backend cpu
+```
+
+CUDA:
+
+```bash
+./scripts/benchmark_exported_weights.sh \
+  --weights-file ./logs/quantized_weights_manifest_*.tsv \
+  --backend cuda
+```
+
+If `--weights-file` is omitted, the script will automatically pick the latest manifest under `logs/`.
 
 ## Tests
 
@@ -42,6 +139,16 @@ The project keeps local provenance for the current `ggml` import and patch flow:
 - current local patch: Vulkan header compatibility adjustment in `src/ggml-vulkan/ggml-vulkan.cpp`
 
 See `docs/ggml_subtree_maintenance_strategy.md` for the longer-term maintenance approach.
+
+## TODO
+
+1. Add a WASM demo so users can try VoxCPM directly in the browser.
+2. Continue improving inference performance. Based on the benchmark report from `https://github.com/DakeQQ/Text-to-Speech-TTS-ONNX`, there is still a noticeable gap between the current performance here and their reported results.
+3. Add a `voxcpm-server` program that provides an OpenAI-compatible API service interface.
+
+## Preview
+
+I also plan to create a dedicated GGML inference repository for `https://huggingface.co/fishaudio/s2-pro`.
 
 ## Benchmark
 
