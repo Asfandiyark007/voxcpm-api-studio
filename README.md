@@ -16,6 +16,7 @@ This directory now serves as the standalone repository root for `VoxCPM.cpp`.
 - `third_party/ggml` is intended to be maintained as a vendored subtree.
 - `third_party/json`, `third_party/llama.cpp`, `third_party/whisper.cpp`, and `third_party/SenseVoice.cpp` are kept only as local references and are ignored by this repository.
 - `CMakeLists.txt` already supports downloading `nlohmann_json` with `FetchContent` when `third_party/json` is absent.
+- `VoxCPM2` is now supported on a preliminary basis. The current C++ runtime can load exported `VoxCPM2` GGUF weights, run end-to-end inference, use the new reference-mode plumbing, and produce 48kHz output through the `AudioVAE V2` path, but quality and parity are still under active validation.
 
 ## Refactor Preview
 
@@ -39,6 +40,8 @@ The refactor target is not a cosmetic rewrite. The goal is to move `VoxCPM.cpp` 
 - backend-resident hot-path data flow between modules whenever possible
 
 In short, the project is moving away from a host-side module translation style and toward a contract-first, backend-aware runtime architecture that is easier to verify, optimize, and extend across CPU/CUDA/Vulkan paths.
+
+To help accelerate that work, I also plan to use `ClaudeCode Opus 4.6` for a larger code rewrite pass focused on improving maintainability, clarifying runtime/module boundaries, and reducing the amount of legacy glue code that accumulated during the initial bring-up phase.
 
 ## Build
 
@@ -415,6 +418,8 @@ See `docs/ggml_subtree_maintenance_strategy.md` for the longer-term maintenance 
 1. Add a WASM demo so users can try VoxCPM directly in the browser.
 2. Continue improving inference performance. Based on the benchmark report from `https://github.com/DakeQQ/Text-to-Speech-TTS-ONNX`, there is still a noticeable gap between the current performance here and their reported results.
 3. Expand server-side test coverage for OpenAI-compatible TTS and voice-management flows.
+4. Continue closing the remaining quality and parity gaps in the preliminary `VoxCPM2` support.
+5. Carry out a larger maintainability-oriented rewrite pass with `ClaudeCode Opus 4.6`.
 
 ## WASM Playground
 

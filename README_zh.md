@@ -16,6 +16,7 @@
 - `third_party/ggml` 作为供应商子树维护。
 - `third_party/json`、`third_party/llama.cpp`、`third_party/whisper.cpp` 和 `third_party/SenseVoice.cpp` 仅作为本地参考，被仓库忽略。
 - `CMakeLists.txt` 已支持在 `third_party/json` 缺失时通过 `FetchContent` 下载 `nlohmann_json`。
+- `VoxCPM2` 现已进入初步支持状态。当前 C++ runtime 已经可以加载导出的 `VoxCPM2` GGUF 权重、完成端到端推理、打通新的 reference 模式链路，并通过 `AudioVAE V2` 路径输出 48kHz 音频，但质量和数值对齐仍在持续验证中。
 
 ## 重构预告
 
@@ -39,6 +40,8 @@
 - 让模块热路径尽量直接传递 backend-resident tensor 或 state handle，减少无意义的数据回传
 
 一句话说，这次重构的目标不是继续堆补丁，而是把项目从“host 侧模块翻译式实现”推进到“契约先行、后端感知、可验证可扩展”的 runtime 架构。
+
+为了加快这项工作，我也计划使用 `ClaudeCode Opus 4.6` 发起一轮更大规模的代码重写，重点改善代码可维护性、梳理 runtime 与模块边界，并减少模型初期跑通阶段遗留下来的胶水层代码。
 
 ## 构建
 
@@ -415,6 +418,8 @@ ctest --output-on-failure
 1. 准备添加一个 WASM 用例，让用户可以直接在网页上试用 VoxCPM 模型。
 2. 继续优化推理性能。根据 `https://github.com/DakeQQ/Text-to-Speech-TTS-ONNX` 的报告，我们和它们当前展示的性能表现相比仍然有一段差距。
 3. 继续补全 OpenAI 兼容 TTS 服务和 voice 管理链路的测试覆盖。
+4. 继续收敛 `VoxCPM2` 初步支持中的质量问题和数值对齐差距。
+5. 使用 `ClaudeCode Opus 4.6` 推进一轮以可维护性为目标的大重写。
 
 ## 预告
 
