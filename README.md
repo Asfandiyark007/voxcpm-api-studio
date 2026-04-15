@@ -9,6 +9,72 @@ Standalone C++ inference project for VoxCPM models built on top of `ggml`.
 
 [中文文档](README_zh.md)
 
+## API Frontend Quick Start
+
+The web playground now includes an API-oriented frontend (`VoxCPM.cpp API Studio`) for the local
+`voxcpm-server`, including:
+
+- `GET /healthz` check
+- `POST/GET/DELETE /v1/voices`
+- `POST /v1/audio/speech` with in-page playback/download
+- long-text mode that splits large input into shorter segments and stitches output into one WAV
+
+### 1) Build backend
+
+CPU build:
+
+```bash
+cmake -B build -DVOXCPM_BUILD_BENCHMARK=OFF -DVOXCPM_BUILD_TESTS=OFF
+cmake --build build
+```
+
+CUDA build:
+
+```bash
+cmake -B build-cuda \
+  -DVOXCPM_CUDA=ON \
+  -DVOXCPM_BUILD_BENCHMARK=OFF \
+  -DVOXCPM_BUILD_TESTS=OFF \
+  -DCMAKE_CUDA_ARCHITECTURES=89
+cmake --build build-cuda
+```
+
+### 2) Start `voxcpm-server`
+
+Example:
+
+```bash
+./build-cuda/examples/voxcpm-server \
+  --host 127.0.0.1 \
+  --port 8080 \
+  --model-path "/run/media/rippler/Intel SSD/Models_qwen/voice-model/vox-model-s.gguf" \
+  --model-name voxcpm-1.5 \
+  --threads 8 \
+  --backend cuda \
+  --voice-dir ./runtime/voices \
+  --max-queue 8 \
+  --disable-auth
+```
+
+### 3) Run API frontend
+
+```bash
+cd web
+corepack pnpm install
+corepack pnpm --filter voxcpm-playground dev
+```
+
+Then open `http://127.0.0.1:3000`.
+
+By default, the UI uses `/api`, and dev proxy forwards `/api/*` to `http://127.0.0.1:8080/*`.
+
+### 4) Build frontend bundle
+
+```bash
+cd web
+corepack pnpm --filter voxcpm-playground build
+```
+
 ## Status
 
 This directory now serves as the standalone repository root for `VoxCPM.cpp`.

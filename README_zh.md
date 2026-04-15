@@ -9,6 +9,71 @@
 
 [English](README.md)
 
+## API 前端快速开始
+
+`web/playground` 现已包含面向本地 `voxcpm-server` 的 API 前端（`VoxCPM.cpp API Studio`），支持：
+
+- `GET /healthz` 健康检查
+- `POST/GET/DELETE /v1/voices`
+- `POST /v1/audio/speech`（页面内播放与下载）
+- 长文本模式：自动分段合成并拼接为单个 WAV
+
+### 1）构建后端
+
+CPU 构建：
+
+```bash
+cmake -B build -DVOXCPM_BUILD_BENCHMARK=OFF -DVOXCPM_BUILD_TESTS=OFF
+cmake --build build
+```
+
+CUDA 构建：
+
+```bash
+cmake -B build-cuda \
+  -DVOXCPM_CUDA=ON \
+  -DVOXCPM_BUILD_BENCHMARK=OFF \
+  -DVOXCPM_BUILD_TESTS=OFF \
+  -DCMAKE_CUDA_ARCHITECTURES=89
+cmake --build build-cuda
+```
+
+### 2）启动 `voxcpm-server`
+
+示例：
+
+```bash
+./build-cuda/examples/voxcpm-server \
+  --host 127.0.0.1 \
+  --port 8080 \
+  --model-path "/run/media/rippler/Intel SSD/Models_qwen/voice-model/vox-model-s.gguf" \
+  --model-name voxcpm-1.5 \
+  --threads 8 \
+  --backend cuda \
+  --voice-dir ./runtime/voices \
+  --max-queue 8 \
+  --disable-auth
+```
+
+### 3）运行 API 前端
+
+```bash
+cd web
+corepack pnpm install
+corepack pnpm --filter voxcpm-playground dev
+```
+
+然后打开 `http://127.0.0.1:3000`。
+
+前端默认使用 `/api`，dev proxy 会将 `/api/*` 转发到 `http://127.0.0.1:8080/*`。
+
+### 4）构建前端产物
+
+```bash
+cd web
+corepack pnpm --filter voxcpm-playground build
+```
+
 ## 状态
 
 此目录现作为 `VoxCPM.cpp` 独立仓库的根目录。

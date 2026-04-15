@@ -22,5 +22,14 @@ export default defineConfig({
       'Cross-Origin-Embedder-Policy': 'require-corp',
       // 'Cross-Origin-Resource-Policy': 'same-origin',
     },
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8080',
+        changeOrigin: true,
+        pathRewrite: {
+          '^/api': '',
+        },
+      },
+    },
   },
 });

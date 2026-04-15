@@ -2,12 +2,13 @@
 
 :root {
   color-scheme: light;
-  --paper: #f7f1e6;
-  --ink: #1d1a16;
-  --accent: #c4472d;
-  --accent-soft: #f2c8a1;
-  --panel: rgba(255, 250, 242, 0.9);
-  --line: rgba(29, 26, 22, 0.14);
+  --paper: #eef5f4;
+  --ink: #122625;
+  --ink-soft: #36504d;
+  --accent: #1f8a73;
+  --accent-soft: #9fdacb;
+  --panel: rgba(248, 253, 252, 0.9);
+  --line: rgba(18, 38, 37, 0.16);
 }
 
 body {
@@ -15,13 +16,21 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(196, 71, 45, 0.18), transparent 28%),
-    radial-gradient(circle at 85% 20%, rgba(242, 200, 161, 0.55), transparent 24%),
-    linear-gradient(180deg, #fcf7ef 0%, #f1e5d5 100%);
+    radial-gradient(circle at 0% 10%, rgba(31, 138, 115, 0.22), transparent 28%),
+    radial-gradient(circle at 85% 18%, rgba(159, 218, 203, 0.52), transparent 30%),
+    radial-gradient(circle at 45% 115%, rgba(15, 84, 71, 0.2), transparent 28%),
+    linear-gradient(180deg, #f8fdfc 0%, #e4f0ee 100%);
   color: var(--ink);
-  font-family: "IBM Plex Sans", "Noto Sans SC", sans-serif;
+  font-family: "Avenir Next", "IBM Plex Sans", "Noto Sans", sans-serif;
 }
 
 #root {
   min-height: 100vh;
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
 }

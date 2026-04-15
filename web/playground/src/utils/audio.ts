@@ -3,6 +3,21 @@ export async function decodeAudioFile(file: File): Promise<{
   sampleRate: number;
 }> {
   const arrayBuffer = await file.arrayBuffer();
+  return decodeAudioArrayBuffer(arrayBuffer);
+}
+
+export async function decodeAudioBlob(blob: Blob): Promise<{
+  samples: Float32Array;
+  sampleRate: number;
+}> {
+  const arrayBuffer = await blob.arrayBuffer();
+  return decodeAudioArrayBuffer(arrayBuffer);
+}
+
+async function decodeAudioArrayBuffer(arrayBuffer: ArrayBuffer): Promise<{
+  samples: Float32Array;
+  sampleRate: number;
+}> {
   const audioContext = new AudioContext();
   try {
     const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
