@@ -12,6 +12,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace voxcpm {
 namespace {
@@ -38,6 +39,142 @@ struct RequestContext {
     double speed = 1.0;
     bool sse = false;
 };
+
+constexpr size_t kLongTextSegmentChars = 180;
+
+std::string collapse_spaces(const std::string& text) {
+    std::string out;
+    out.reserve(text.size());
+    bool prev_space = false;
+    for (char ch : text) {
+        const bool space = (ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r');
+        if (space) {
+            if (!prev_space && !out.empty()) {
+                out.push_back(' ');
+            }
+            prev_space = true;
+        } else {
+            out.push_back(ch);
+            prev_space = false;
+        }
+    }
+    if (!out.empty() && out.back() == ' ') {
+        out.pop_back();
+    }
+    return out;
+}
+
+std::vector<std::string> split_by_sentence(const std::string& text) {
+    std::vector<std::string> sentences;
+    std::string current;
+    current.reserve(text.size());
+
+    for (char ch : text) {
+        current.push_back(ch);
+        if (ch == '.' || ch == '?' || ch == '!' || ch == '\n') {
+            const std::string normalized = collapse_spaces(current);
+            if (!normalized.empty()) {
+                sentences.push_back(normalized);
+            }
+            current.clear();
+        }
+    }
+
+    const std::string tail = collapse_spaces(current);
+    if (!tail.empty()) {
+        sentences.push_back(tail);
+    }
+
+    return sentences;
+}
+
+std::vector<std::string> split_overlong_sentence(const std::string& sentence, size_t max_chars) {
+    if (sentence.size() <= max_chars) {
+        return {sentence};
+    }
+
+    std::vector<std::string> parts;
+    std::string current;
+    current.reserve(sentence.size());
+
+    for (char ch : sentence) {
+        current.push_back(ch);
+        const bool comma_like = (ch == ',' || ch == ';' || ch == ':');
+        if (!comma_like) {
+            continue;
+        }
+
+        const std::string normalized = collapse_spaces(current);
+        if (!normalized.empty()) {
+            parts.push_back(normalized);
+        }
+        current.clear();
+    }
+
+    const std::string tail = collapse_spaces(current);
+    if (!tail.empty()) {
+        parts.push_back(tail);
+    }
+
+    if (parts.empty()) {
+        parts.push_back(sentence);
+    }
+
+    std::vector<std::string> out;
+    for (const std::string& part : parts) {
+        if (part.size() <= max_chars) {
+            out.push_back(part);
+            continue;
+        }
+
+        size_t start = 0;
+        while (start < part.size()) {
+            out.push_back(part.substr(start, max_chars));
+            start += max_chars;
+        }
+    }
+    return out;
+}
+
+std::vector<std::string> split_long_text_for_synthesis(const std::string& text, size_t max_chars) {
+    const std::string normalized_text = collapse_spaces(text);
+    if (normalized_text.empty()) {
+        return {};
+    }
+
+    const std::vector<std::string> seed = split_by_sentence(normalized_text);
+    std::vector<std::string> fine;
+    fine.reserve(seed.size());
+    for (const std::string& sentence : seed) {
+        const std::vector<std::string> pieces = split_overlong_sentence(sentence, max_chars);
+        fine.insert(fine.end(), pieces.begin(), pieces.end());
+    }
+
+    std::vector<std::string> merged;
+    std::string current;
+    for (const std::string& piece : fine) {
+        if (piece.empty()) {
+            continue;
+        }
+        const std::string candidate = current.empty() ? piece : current + " " + piece;
+        if (candidate.size() <= max_chars) {
+            current = candidate;
+        } else {
+            if (!current.empty()) {
+                merged.push_back(current);
+            }
+            current = piece;
+        }
+    }
+    if (!current.empty()) {
+        merged.push_back(current);
+    }
+
+    if (merged.empty()) {
+        merged.push_back(normalized_text);
+    }
+    return merged;
+}
 
 [[noreturn]] void fail(const std::string& message) {
     throw std::runtime_error(message);
@@ -398,21 +535,29 @@ int main(int argc, char** argv) {
 
                 if (ctx.sse) {
                     std::vector<std::string> events;
-                    SynthesisRequest request;
-                    request.text = ctx.input;
-                    request.prompt = std::move(prompt);
-                    request.chunk_callback = [&](const std::vector<float>& chunk_waveform) {
-                        const std::vector<float> sped_up = resample_audio_linear(chunk_waveform, ctx.speed);
-                        const std::vector<uint8_t> encoded = encode_audio(ctx.format, sped_up, core.sample_rate());
-                        const std::string encoded64 = base64_encode(encoded.data(), encoded.size());
-                        const json payload = {
-                            {"type", "audio.delta"},
-                            {"delta", encoded64},
-                            {"format", audio_response_format_name(ctx.format)},
+                    const std::vector<std::string> segments = split_long_text_for_synthesis(ctx.input, kLongTextSegmentChars);
+                    if (segments.size() > 1) {
+                        std::cerr << "[tts] long-text split segments=" << segments.size()
+                                  << " max_chars=" << kLongTextSegmentChars << "\n";
+                    }
+
+                    for (const std::string& segment : segments) {
+                        SynthesisRequest request;
+                        request.text = segment;
+                        request.prompt = prompt;
+                        request.chunk_callback = [&](const std::vector<float>& chunk_waveform) {
+                            const std::vector<float> sped_up = resample_audio_linear(chunk_waveform, ctx.speed);
+                            const std::vector<uint8_t> encoded = encode_audio(ctx.format, sped_up, core.sample_rate());
+                            const std::string encoded64 = base64_encode(encoded.data(), encoded.size());
+                            const json payload = {
+                                {"type", "audio.delta"},
+                                {"delta", encoded64},
+                                {"format", audio_response_format_name(ctx.format)},
+                            };
+                            events.push_back("event: audio.delta\ndata: " + payload.dump() + "\n\n");
                         };
-                        events.push_back("event: audio.delta\ndata: " + payload.dump() + "\n\n");
-                    };
-                    core.synthesize(request);
+                        core.synthesize(request);
+                    }
                     events.push_back("event: audio.completed\ndata: {\"type\":\"audio.completed\"}\n\n");
                     res.set_chunked_content_provider(
                         "text/event-stream",
@@ -428,12 +573,25 @@ int main(int argc, char** argv) {
                     return;
                 }
 
-                SynthesisRequest request;
-                request.text = ctx.input;
-                request.prompt = std::move(prompt);
-                SynthesisResult result = core.synthesize(request);
-                result.waveform = resample_audio_linear(result.waveform, ctx.speed);
-                const std::vector<uint8_t> payload = encode_audio(ctx.format, result.waveform, result.sample_rate);
+                const std::vector<std::string> segments = split_long_text_for_synthesis(ctx.input, kLongTextSegmentChars);
+                if (segments.size() > 1) {
+                    std::cerr << "[tts] long-text split segments=" << segments.size()
+                              << " max_chars=" << kLongTextSegmentChars << "\n";
+                }
+
+                std::vector<float> merged_waveform;
+                int output_sample_rate = core.sample_rate();
+                for (const std::string& segment : segments) {
+                    SynthesisRequest request;
+                    request.text = segment;
+                    request.prompt = prompt;
+                    SynthesisResult result = core.synthesize(request);
+                    output_sample_rate = result.sample_rate;
+                    merged_waveform.insert(merged_waveform.end(), result.waveform.begin(), result.waveform.end());
+                }
+
+                merged_waveform = resample_audio_linear(merged_waveform, ctx.speed);
+                const std::vector<uint8_t> payload = encode_audio(ctx.format, merged_waveform, output_sample_rate);
                 res.set_header("Content-Type", audio_content_type(ctx.format));
                 res.set_content(reinterpret_cast<const char*>(payload.data()), payload.size(), audio_content_type(ctx.format));
             } catch (const std::invalid_argument& e) {
