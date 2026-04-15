@@ -11,6 +11,10 @@ Standalone C++ inference project for VoxCPM models built on top of `ggml`.
 
 ## API Frontend Quick Start
 
+Demo video:
+
+- https://youtu.be/sU9c-P6HroA
+
 The web playground now includes an API-oriented frontend (`VoxCPM.cpp API Studio`) for the local
 `voxcpm-server`, including:
 
@@ -18,6 +22,10 @@ The web playground now includes an API-oriented frontend (`VoxCPM.cpp API Studio
 - `POST/GET/DELETE /v1/voices`
 - `POST /v1/audio/speech` with in-page playback/download
 - long-text mode that splits large input into shorter segments and stitches output into one WAV
+
+Model path note:
+
+- In the server command below, replace `--model-path` with your own local GGUF file path.
 
 ### 1) Build backend
 
@@ -47,7 +55,7 @@ Example:
 ./build-cuda/examples/voxcpm-server \
   --host 127.0.0.1 \
   --port 8080 \
-  --model-path "/run/media/rippler/Intel SSD/Models_qwen/voice-model/vox-model-s.gguf" \
+  --model-path "/path/to/your/model.gguf" \
   --model-name voxcpm-1.5 \
   --threads 8 \
   --backend cuda \
@@ -55,6 +63,12 @@ Example:
   --max-queue 8 \
   --disable-auth
 ```
+
+Long-text tip:
+
+- The frontend long-text mode first splits by sentence punctuation (`.?!` / `。！？`).
+- If a sentence is still too long, it further splits by commas/pauses (`,` / `，` / `;` / `；` / `:` / `：` / `、`).
+- This helps reduce long-form instability such as buzzing, runaway generation, or memory pressure.
 
 ### 3) Run API frontend
 

@@ -9,12 +9,22 @@
 
 ## API Frontend
 
+演示视频：
+
+- https://youtu.be/sU9c-P6HroA
+
 Playground 现已包含 `VoxCPM.cpp API Studio`，用于连接本地 `voxcpm-server`：
 
 - `GET /healthz`
 - `POST/GET/DELETE /v1/voices`
 - `POST /v1/audio/speech`
 - 长文本模式（自动分段并拼接）
+
+长文本模式说明：
+
+- 先按句号/问号/感叹号（`.?!` / `。！？`）切分。
+- 句子过长时，再按逗号与停顿符号（`,` / `，` / `;` / `；` / `:` / `：` / `、`）进一步切分。
+- 每段依次合成后在前端拼接为一个 WAV，降低长文本不稳定风险。
 
 默认 API 基地址为 `/api`，开发时会通过 Rsbuild proxy 转发到 `http://127.0.0.1:8080`。
 

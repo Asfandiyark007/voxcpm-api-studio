@@ -11,12 +11,20 @@
 
 ## API 前端快速开始
 
+演示视频：
+
+- https://youtu.be/sU9c-P6HroA
+
 `web/playground` 现已包含面向本地 `voxcpm-server` 的 API 前端（`VoxCPM.cpp API Studio`），支持：
 
 - `GET /healthz` 健康检查
 - `POST/GET/DELETE /v1/voices`
 - `POST /v1/audio/speech`（页面内播放与下载）
 - 长文本模式：自动分段合成并拼接为单个 WAV
+
+模型路径说明：
+
+- 下面命令中的 `--model-path` 需要替换为你自己机器上的 GGUF 模型路径。
 
 ### 1）构建后端
 
@@ -46,7 +54,7 @@ cmake --build build-cuda
 ./build-cuda/examples/voxcpm-server \
   --host 127.0.0.1 \
   --port 8080 \
-  --model-path "/run/media/rippler/Intel SSD/Models_qwen/voice-model/vox-model-s.gguf" \
+  --model-path "/path/to/your/model.gguf" \
   --model-name voxcpm-1.5 \
   --threads 8 \
   --backend cuda \
@@ -54,6 +62,12 @@ cmake --build build-cuda
   --max-queue 8 \
   --disable-auth
 ```
+
+长文本说明：
+
+- 前端长文本模式会先按句号/问号/感叹号（`.?!` / `。！？`）分段。
+- 如果单句仍然过长，会继续按逗号和停顿符号（`,` / `，` / `;` / `；` / `:` / `：` / `、`）拆分。
+- 这样可降低长文本合成时的嗡声、失控生成和内存压力风险。
 
 ### 3）运行 API 前端
 
